@@ -1,0 +1,44 @@
+version: 2
+jobs:
+  build:
+    working_directory: ~/webapp
+    docker:
+      - image: circleci/openjdk:8-jdk
+      - image: circleci/php:7.1-apache-node-browsers
+      - image: circleci/mysql:8.0.4
+        environment:
+          MYSQL_ROOT_PASSWORD: rootpw
+          MYSQL_DATABASE: csye6225
+          MYSQL_USER: dbuser
+          MYSQL_PASSWORD: abc123456
+
+    steps:
+      - checkout
+
+      - run:
+          name: Install packages
+          command: |
+            sudo apt-get update 
+            sudo apt-get install -y python-pip
+      - run:
+          name: Install azure-cli
+          command: |
+            curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+      - run:
+          name: Waiting for MySQL to be ready
+          command: |
+            for i in `seq 1 10`;
+            do
+              nc -z 127.0.0.1 3306 && echo Success && exit 0
+              echo -n .
+              sleep 1
+            done
+            echo Failed waiting for MySQL && exit 1
+      - run:
+          name: Make CodeDeploy API call
+          command: |
+            mvn package azure-webapp:deploy
+      - run:
+          name: clean resource
+          command: |
+            az group delete --name myResourceGroup
